@@ -98,3 +98,32 @@ document.querySelectorAll('img').forEach((image) => {
 window.addEventListener('resize', () => {
   if (window.innerWidth > 1080) closeHeaderPanels();
 }, { passive: true });
+
+const hero = document.querySelector('.hero');
+const heroMedia = document.querySelector('.hero-media');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const desktopHero = window.matchMedia('(min-width: 961px)');
+let parallaxFrame;
+
+function updateHeroParallax() {
+  parallaxFrame = undefined;
+
+  if (!hero || !heroMedia || reducedMotion.matches || !desktopHero.matches) {
+    heroMedia?.style.removeProperty('--hero-parallax-y');
+    return;
+  }
+
+  const rect = hero.getBoundingClientRect();
+  const offset = Math.max(-38, Math.min(38, -rect.top * 0.12));
+  heroMedia.style.setProperty('--hero-parallax-y', `${offset.toFixed(2)}px`);
+}
+
+function requestHeroParallax() {
+  if (!parallaxFrame) parallaxFrame = window.requestAnimationFrame(updateHeroParallax);
+}
+
+window.addEventListener('scroll', requestHeroParallax, { passive: true });
+window.addEventListener('resize', requestHeroParallax, { passive: true });
+reducedMotion.addEventListener('change', requestHeroParallax);
+desktopHero.addEventListener('change', requestHeroParallax);
+requestHeroParallax();
