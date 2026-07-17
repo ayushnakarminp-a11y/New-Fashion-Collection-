@@ -41,6 +41,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>document.documentElement.classList.add('js');</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -115,24 +116,66 @@
       </figure>
     </section>
 
-    <section class="category-grid" id="categories" aria-label="Shop by category">
-      <a class="category-tile category-kurta image-shell" href="kurta-surwal.html">
-        <img src="images/02-sage-kurta-surwal.webp" alt="Sage embroidered kurta surwal" loading="lazy" width="1003" height="1568">
-        <span class="category-label"><span>Kurta Surwal</span><i class="ph ph-arrow-right" aria-hidden="true"></i></span>
-      </a>
-      <a class="category-tile category-lehenga image-shell" href="#new-arrivals">
-        <img src="images/03-yellow-lehenga.webp" alt="Mustard embroidered lehenga" loading="lazy" width="887" height="1774">
-        <span class="category-label"><span>Lehenga</span><i class="ph ph-arrow-right" aria-hidden="true"></i></span>
-      </a>
-      <div class="category-stack">
-        <a class="category-tile image-shell" href="#new-arrivals">
-          <img src="images/04-blue-embroidered-top.webp" alt="Powder blue embroidered top" loading="lazy" width="1448" height="1086">
-          <span class="category-label"><span>Tops &amp; Blouses</span><i class="ph ph-arrow-right" aria-hidden="true"></i></span>
-        </a>
-        <a class="category-tile image-shell" href="#new-arrivals">
-          <img src="images/05-ivory-top-olive-pants.webp" alt="Ivory top with olive tailored pants" loading="lazy" width="1448" height="1086">
-          <span class="category-label"><span>Pants</span><i class="ph ph-arrow-right" aria-hidden="true"></i></span>
-        </a>
+    <section class="collection-story" id="categories" aria-label="Collections">
+      <div class="collection-stage">
+        <div class="collection-panels">
+          <article class="collection-panel is-active" data-collection-panel aria-labelledby="collection-kurta-title">
+            <div class="collection-panel__media image-shell">
+              <img src="images/02-sage-kurta-surwal.webp" alt="Sage embroidered kurta surwal" loading="eager" width="1003" height="1568">
+            </div>
+            <div class="collection-panel__content">
+              <span class="collection-panel__number" data-reveal="0">01</span>
+              <h2 id="collection-kurta-title" data-reveal="1">Kurta Surwal</h2>
+              <p data-reveal="2">A timeless traditional outfit combining graceful comfort, refined tailoring, and everyday elegance.</p>
+              <a class="collection-panel__link" data-reveal="3" href="kurta-surwal.html">Explore Collection <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            </div>
+          </article>
+
+          <article class="collection-panel" data-collection-panel aria-labelledby="collection-lehenga-title" aria-hidden="true">
+            <div class="collection-panel__media image-shell">
+              <img src="images/03-yellow-lehenga.webp" alt="Mustard embroidered lehenga" loading="lazy" width="887" height="1774">
+            </div>
+            <div class="collection-panel__content">
+              <span class="collection-panel__number" data-reveal="0">02</span>
+              <h2 id="collection-lehenga-title" data-reveal="1">Lehenga</h2>
+              <p data-reveal="2">A celebratory statement piece featuring flowing silhouettes, rich textures, and beautiful detailing for special occasions.</p>
+              <a class="collection-panel__link" data-reveal="3" href="#new-arrivals" tabindex="-1">Explore Collection <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            </div>
+          </article>
+
+          <article class="collection-panel" data-collection-panel aria-labelledby="collection-pants-title" aria-hidden="true">
+            <div class="collection-panel__media image-shell">
+              <img src="images/05-ivory-top-olive-pants.webp" alt="Ivory top with olive tailored pants" loading="lazy" width="1448" height="1086">
+            </div>
+            <div class="collection-panel__content">
+              <span class="collection-panel__number" data-reveal="0">03</span>
+              <h2 id="collection-pants-title" data-reveal="1">Pants</h2>
+              <p data-reveal="2">Modern, versatile bottoms designed for comfort, confidence, and effortless styling.</p>
+              <a class="collection-panel__link" data-reveal="3" href="#new-arrivals" tabindex="-1">Explore Collection <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            </div>
+          </article>
+
+          <article class="collection-panel" data-collection-panel aria-labelledby="collection-tops-title" aria-hidden="true">
+            <div class="collection-panel__media image-shell">
+              <img src="images/04-blue-embroidered-top.webp" alt="Powder blue embroidered top and blouse" loading="lazy" width="1448" height="1086">
+            </div>
+            <div class="collection-panel__content">
+              <span class="collection-panel__number" data-reveal="0">04</span>
+              <h2 id="collection-tops-title" data-reveal="1">Shirts, Tops &amp; Blouses</h2>
+              <p data-reveal="2">Chic essentials that bring together contemporary cuts, flattering fits, and easy elegance.</p>
+              <a class="collection-panel__link" data-reveal="3" href="#new-arrivals" tabindex="-1">Explore Collection <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            </div>
+          </article>
+        </div>
+
+        <nav class="collection-progress" aria-label="Choose a collection">
+          <ol>
+            <li><button class="is-active" type="button" data-collection-jump="0" aria-label="Show Kurta Surwal collection" aria-current="step">01</button></li>
+            <li><button type="button" data-collection-jump="1" aria-label="Show Lehenga collection">02</button></li>
+            <li><button type="button" data-collection-jump="2" aria-label="Show Pants collection">03</button></li>
+            <li><button type="button" data-collection-jump="3" aria-label="Show Shirts, Tops and Blouses collection">04</button></li>
+          </ol>
+        </nav>
       </div>
     </section>
 

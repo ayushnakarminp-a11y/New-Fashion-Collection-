@@ -104,26 +104,162 @@ const heroMedia = document.querySelector('.hero-media');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const desktopHero = window.matchMedia('(min-width: 961px)');
 let parallaxFrame;
+let heroVisible = false;
 
 function updateHeroParallax() {
-  parallaxFrame = undefined;
-
-  if (!hero || !heroMedia || reducedMotion.matches || !desktopHero.matches) {
+  if (!hero || !heroMedia || !heroVisible || reducedMotion.matches || !desktopHero.matches) {
     heroMedia?.style.removeProperty('--hero-parallax-y');
+    parallaxFrame = undefined;
     return;
   }
 
   const rect = hero.getBoundingClientRect();
   const offset = Math.max(-38, Math.min(38, -rect.top * 0.12));
   heroMedia.style.setProperty('--hero-parallax-y', `${offset.toFixed(2)}px`);
+  parallaxFrame = window.requestAnimationFrame(updateHeroParallax);
 }
 
 function requestHeroParallax() {
   if (!parallaxFrame) parallaxFrame = window.requestAnimationFrame(updateHeroParallax);
 }
 
-window.addEventListener('scroll', requestHeroParallax, { passive: true });
+if (hero) {
+  const heroObserver = new IntersectionObserver(([entry]) => {
+    heroVisible = entry.isIntersecting;
+    if (heroVisible) requestHeroParallax();
+  });
+  heroObserver.observe(hero);
+}
+
 window.addEventListener('resize', requestHeroParallax, { passive: true });
 reducedMotion.addEventListener('change', requestHeroParallax);
 desktopHero.addEventListener('change', requestHeroParallax);
 requestHeroParallax();
+
+const collectionStory = document.querySelector('.collection-story');
+const collectionStage = document.querySelector('.collection-stage');
+const collectionPanels = [...document.querySelectorAll('[data-collection-panel]')];
+const collectionJumps = [...document.querySelectorAll('[data-collection-jump]')];
+let collectionFrame;
+let collectionVisible = false;
+let activeCollection = 0;
+
+function clamp(value, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function smoothstep(start, end, value) {
+  const progress = clamp((value - start) / (end - start));
+  return progress * progress * (3 - (2 * progress));
+}
+
+function setActiveCollection(nextIndex) {
+  if (nextIndex === activeCollection && collectionPanels[nextIndex]?.classList.contains('is-active')) return;
+  activeCollection = nextIndex;
+
+  collectionPanels.forEach((panel, index) => {
+    const active = index === nextIndex;
+    panel.classList.toggle('is-active', active);
+    panel.setAttribute('aria-hidden', String(!active));
+    panel.querySelector('.collection-panel__link')?.setAttribute('tabindex', active ? '0' : '-1');
+  });
+
+  collectionJumps.forEach((button, index) => {
+    const active = index === nextIndex;
+    button.classList.toggle('is-active', active);
+    if (active) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  });
+}
+
+function resetCollectionMotion() {
+  collectionPanels.forEach((panel) => {
+    panel.style.removeProperty('opacity');
+    panel.querySelector('.collection-panel__media img')?.style.removeProperty('transform');
+    panel.querySelectorAll('[data-reveal]').forEach((element) => {
+      element.style.removeProperty('opacity');
+      element.style.removeProperty('transform');
+    });
+    panel.removeAttribute('aria-hidden');
+    panel.querySelector('.collection-panel__link')?.removeAttribute('tabindex');
+  });
+}
+
+function updateCollectionStory() {
+  if (!collectionStory || !collectionStage || !collectionVisible) {
+    collectionFrame = undefined;
+    return;
+  }
+
+  if (reducedMotion.matches) {
+    resetCollectionMotion();
+    collectionFrame = undefined;
+    return;
+  }
+
+  const rect = collectionStory.getBoundingClientRect();
+  const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 0;
+  const scrollDistance = Math.max(1, collectionStory.offsetHeight - collectionStage.offsetHeight);
+  const progress = clamp((headerHeight - rect.top) / scrollDistance);
+  const timeline = progress * collectionPanels.length;
+  const nextActive = Math.min(collectionPanels.length - 1, Math.floor(timeline));
+  setActiveCollection(nextActive);
+
+  collectionPanels.forEach((panel, index) => {
+    const local = timeline - index;
+    const entering = index === 0 ? 1 : smoothstep(-0.2, 0.12, local);
+    const leaving = index === collectionPanels.length - 1 ? 0 : smoothstep(0.78, 1.12, local);
+    const visibility = clamp(entering * (1 - leaving));
+    panel.style.opacity = visibility.toFixed(4);
+
+    const image = panel.querySelector('.collection-panel__media img');
+    if (image) {
+      const imageShift = ((1 - entering) * 5.5) - (leaving * 5.5);
+      const imageScale = 1.045 - (visibility * 0.02);
+      image.style.transform = `translate3d(0, ${imageShift.toFixed(3)}%, 0) scale(${imageScale.toFixed(4)})`;
+    }
+
+    panel.querySelectorAll('[data-reveal]').forEach((element) => {
+      const order = Number(element.dataset.reveal || 0);
+      const revealIn = index === 0 ? 1 : smoothstep(-0.16 + (order * 0.035), 0.08 + (order * 0.035), local);
+      const revealVisibility = clamp(revealIn * (1 - leaving));
+      const revealShift = ((1 - revealIn) * (24 + (order * 3))) - (leaving * 17);
+      element.style.opacity = revealVisibility.toFixed(4);
+      element.style.transform = `translate3d(0, ${revealShift.toFixed(2)}px, 0)`;
+    });
+  });
+
+  collectionFrame = window.requestAnimationFrame(updateCollectionStory);
+}
+
+function requestCollectionUpdate() {
+  if (!collectionFrame) collectionFrame = window.requestAnimationFrame(updateCollectionStory);
+}
+
+if (collectionStory && collectionStage && collectionPanels.length) {
+  const collectionObserver = new IntersectionObserver(([entry]) => {
+    collectionVisible = entry.isIntersecting;
+    if (collectionVisible) requestCollectionUpdate();
+  });
+  collectionObserver.observe(collectionStory);
+
+  collectionJumps.forEach((button, index) => {
+    button.addEventListener('click', () => {
+      const storyRect = collectionStory.getBoundingClientRect();
+      const storyTop = window.scrollY + storyRect.top;
+      const scrollDistance = collectionStory.offsetHeight - collectionStage.offsetHeight;
+      const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 0;
+      const segmentProgress = index === 0 ? 0 : (index + 0.14) / collectionPanels.length;
+      window.scrollTo({
+        top: storyTop - headerHeight + (scrollDistance * segmentProgress),
+        behavior: reducedMotion.matches ? 'auto' : 'smooth'
+      });
+    });
+  });
+}
+
+window.addEventListener('resize', requestCollectionUpdate, { passive: true });
+reducedMotion.addEventListener('change', () => {
+  if (reducedMotion.matches) resetCollectionMotion();
+  else if (collectionVisible) requestCollectionUpdate();
+});
