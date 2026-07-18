@@ -91,7 +91,7 @@ if (collection) {
     return `
       <article class="catalog-card">
         <a class="catalog-image image-shell" href="#" aria-label="View ${product[0]}">
-          <img src="images/${collectionKey === 'tops' ? 'tops-blouses' : collectionKey}/${number}.webp" alt="${product[3]}"${loading}${priority} decoding="async" width="362" height="362">
+          <img src="/images/${collectionKey === 'tops' ? 'tops-blouses' : collectionKey}/${number}.webp" alt="${product[3]}"${loading}${priority} decoding="async" width="362" height="362">
         </a>
         <div class="catalog-info"><div><h3>${product[0]}</h3><p>${product[1]}</p></div><strong>${product[2]}</strong></div>
       </article>`;
