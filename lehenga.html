@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Shop Kurta Surwal sets at Economic Boutique in Sanepa, Lalitpur. Everyday cottons, festive embroidery and custom stitching available.">
+  <meta name="description" content="Shop Lehenga styles at Economic Boutique in Sanepa, Lalitpur. Wedding embroidery, festive color and custom stitching available.">
   <meta name="theme-color" content="#FAF8F5">
-  <title>Kurta Surwal Collection | Economic Boutique</title>
-  <link rel="preload" as="image" href="images/kurta-surwal/01-sage-chikankari.webp" type="image/webp" fetchpriority="high">
+  <title>Lehenga Collection | Economic Boutique</title>
+  <link rel="preload" as="image" href="images/lehenga/01.webp" type="image/webp" fetchpriority="high">
   <link rel="icon" href="images/economic-boutique-mark.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="kurta-surwal.css">
 </head>
-<body>
+<body data-collection="lehenga">
   <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="site-header" id="siteHeader">
@@ -29,8 +29,8 @@
       <a class="wordmark brand-logo-link" href="index.html" aria-label="New Fashion Collection Economic Boutique home"><img class="brand-logo" src="images/economic-boutique-mark.png" alt="" width="256" height="256"><span class="brand-name"><span class="brand-name__collection">NEW FASHION COLLECTION</span><span class="brand-name__boutique">ECONOMIC BOUTIQUE</span></span></a>
 
       <nav class="desktop-nav" aria-label="Primary navigation">
-        <a class="active" href="kurta-surwal.html" aria-current="page">Kurta Surwal</a>
-        <a href="lehenga.html">Lehenga</a>
+        <a href="kurta-surwal.html">Kurta Surwal</a>
+        <a class="active" href="lehenga.html" aria-current="page">Lehenga</a>
         <a href="pants.html">Pants</a>
         <a href="shirt-tops-blouses.html">Shirt Tops &amp; Blouses</a>
         <a href="#custom-stitching">Custom Stitching</a>
@@ -48,8 +48,8 @@
     </div>
 
     <nav class="mobile-menu" id="mobileMenu" aria-label="Mobile navigation" hidden>
-      <a href="kurta-surwal.html" aria-current="page">Kurta Surwal</a>
-      <a href="lehenga.html">Lehenga</a>
+      <a href="kurta-surwal.html">Kurta Surwal</a>
+      <a class="active" href="lehenga.html" aria-current="page">Lehenga</a>
       <a href="pants.html">Pants</a>
       <a href="shirt-tops-blouses.html">Shirt Tops &amp; Blouses</a>
       <a href="#custom-stitching">Custom Stitching</a>
@@ -70,13 +70,13 @@
     <section class="catalog-section" id="collection" aria-labelledby="catalog-title">
       <div class="catalog-heading">
         <div>
-          <h1 id="catalog-title">KURTA SURWAL COLLECTION</h1>
-          <p>From breathable daily favorites to celebration-ready sets.</p>
+          <h1 id="catalog-title">LEHENGA COLLECTION</h1>
+          <p>Celebration silhouettes with movement, color and intricate detail.</p>
         </div>
         <p class="catalog-count">12 styles</p>
       </div>
 
-      <div class="catalog-grid">
+      <template class="catalog-template">
         <article class="catalog-card">
           <a class="catalog-image image-shell" href="#" aria-label="View Sage Chikankari Kurta Surwal">
             <img src="images/kurta-surwal/01-sage-chikankari.webp" alt="Woman in a sage chikankari Kurta Surwal" fetchpriority="high" decoding="async" width="362" height="362">
@@ -160,7 +160,9 @@
           </a>
           <div class="catalog-info"><div><h3>White Blue Threadwork</h3><p>Clean, airy detailing</p></div><strong>NPR 3,950</strong></div>
         </article>
-      </div>
+      </template>
+      <div class="catalog-grid"></div>
+      <noscript><p class="catalog-noscript">Please enable JavaScript to view this collection.</p></noscript>
     </section>
 
     <section class="catalog-stitching" id="custom-stitching" aria-labelledby="stitching-title">
@@ -203,6 +205,7 @@
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="collection-page.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
