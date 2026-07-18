@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ProductDetail, { type CommerceProduct } from "@/components/ui/e-commerce-product-detail";
 
 type Product = [name: string, description: string, price: string, alt: string];
@@ -200,9 +200,142 @@ const homeCollections = [
 
 function HomePage({ onSelect }: { onSelect: (product: CommerceProduct) => void }) {
   const [activeCollection, setActiveCollection] = useState(0);
+  const heroRef = useRef<HTMLElement>(null);
+  const collectionStoryRef = useRef<HTMLElement>(null);
+  const collectionStageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const hero = heroRef.current;
+    const story = collectionStoryRef.current;
+    const stage = collectionStageRef.current;
+    if (!hero || !story || !stage) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const panels = Array.from(story.querySelectorAll<HTMLElement>("[data-collection-panel]"));
+    let frame = 0;
+    let heroVisible = true;
+    let storyVisible = false;
+    let currentPanel = 0;
+
+    const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+    const smoothstep = (start: number, end: number, value: number) => {
+      const progress = clamp((value - start) / (end - start));
+      return progress * progress * (3 - 2 * progress);
+    };
+
+    const resetMotion = () => {
+      hero.style.removeProperty("--hero-progress");
+      panels.forEach((panel) => {
+        panel.style.removeProperty("opacity");
+        panel.querySelector<HTMLElement>(".collection-panel__media img")?.style.removeProperty("transform");
+        panel.querySelectorAll<HTMLElement>("[data-reveal]").forEach((element) => {
+          element.style.removeProperty("opacity");
+          element.style.removeProperty("transform");
+        });
+      });
+    };
+
+    const renderFrame = () => {
+      frame = 0;
+      if (reducedMotion.matches) {
+        resetMotion();
+        return;
+      }
+
+      if (heroVisible) {
+        const rect = hero.getBoundingClientRect();
+        const progress = clamp(-rect.top / Math.max(1, rect.height));
+        hero.style.setProperty("--hero-progress", progress.toFixed(4));
+      }
+
+      if (storyVisible && panels.length) {
+        const rect = story.getBoundingClientRect();
+        const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-height")) || 0;
+        const scrollDistance = Math.max(1, story.offsetHeight - stage.offsetHeight);
+        const progress = clamp((headerHeight - rect.top) / scrollDistance);
+        const timeline = progress * panels.length;
+        const nextPanel = Math.min(panels.length - 1, Math.floor(timeline));
+
+        if (nextPanel !== currentPanel) {
+          currentPanel = nextPanel;
+          setActiveCollection(nextPanel);
+        }
+
+        panels.forEach((panel, index) => {
+          const local = timeline - index;
+          const entering = index === 0 ? 1 : smoothstep(-0.18, 0.12, local);
+          const leaving = index === panels.length - 1 ? 0 : smoothstep(0.76, 1.08, local);
+          const visibility = clamp(entering * (1 - leaving));
+          panel.style.opacity = visibility.toFixed(4);
+
+          const image = panel.querySelector<HTMLElement>(".collection-panel__media img");
+          if (image) {
+            const shift = (1 - entering) * 7 - leaving * 7;
+            const scale = 1.065 - visibility * 0.025;
+            image.style.transform = `translate3d(0, ${shift.toFixed(3)}%, 0) scale(${scale.toFixed(4)})`;
+          }
+
+          panel.querySelectorAll<HTMLElement>("[data-reveal]").forEach((element) => {
+            const order = Number(element.dataset.reveal ?? 0);
+            const revealIn = index === 0 ? 1 : smoothstep(-0.14 + order * 0.035, 0.09 + order * 0.035, local);
+            const revealVisibility = clamp(revealIn * (1 - leaving));
+            const shift = (1 - revealIn) * (28 + order * 4) - leaving * 18;
+            element.style.opacity = revealVisibility.toFixed(4);
+            element.style.transform = `translate3d(0, ${shift.toFixed(2)}px, 0)`;
+          });
+        });
+      }
+
+      if (heroVisible || storyVisible) frame = window.requestAnimationFrame(renderFrame);
+    };
+
+    const requestRender = () => {
+      if (!frame && !reducedMotion.matches) frame = window.requestAnimationFrame(renderFrame);
+    };
+
+    const heroObserver = new IntersectionObserver(([entry]) => {
+      heroVisible = entry.isIntersecting;
+      requestRender();
+    });
+    const storyObserver = new IntersectionObserver(([entry]) => {
+      storyVisible = entry.isIntersecting;
+      requestRender();
+    });
+
+    heroObserver.observe(hero);
+    storyObserver.observe(story);
+    window.addEventListener("resize", requestRender, { passive: true });
+    reducedMotion.addEventListener("change", requestRender);
+    requestRender();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      heroObserver.disconnect();
+      storyObserver.disconnect();
+      window.removeEventListener("resize", requestRender);
+      reducedMotion.removeEventListener("change", requestRender);
+      resetMotion();
+    };
+  }, []);
+
+  const jumpToCollection = (index: number) => {
+    const story = collectionStoryRef.current;
+    const stage = collectionStageRef.current;
+    if (!story || !stage) return;
+    const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-height")) || 0;
+    const storyTop = window.scrollY + story.getBoundingClientRect().top;
+    const scrollDistance = Math.max(0, story.offsetHeight - stage.offsetHeight);
+    const progress = index === 0 ? 0 : (index + 0.08) / homeCollections.length;
+    setActiveCollection(index);
+    window.scrollTo({
+      top: storyTop - headerHeight + scrollDistance * progress,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  };
+
   return <main id="main">
-    <section className="hero" aria-labelledby="hero-title"><div className="hero-shape hero-circle" aria-hidden="true" /><div className="hero-shape hero-panel" aria-hidden="true" /><div className="hero-shape hero-arch" aria-hidden="true" /><div className="hero-copy"><h1 id="hero-title"><span className="hero-line-mask"><span className="hero-line hero-line--one">TRADITION</span></span><span className="hero-line-mask"><span className="hero-line hero-line--two">MEETS STYLE</span></span></h1><p className="hero-reveal hero-reveal--copy">Indian-style clothing for weddings, festivals and beautiful everyday dressing.</p><a className="button button-primary hero-reveal hero-reveal--cta" href="#new-arrivals">Explore the New Collection</a></div><div className="hero-media image-shell"><img src="/images/01-hero-red-blue-lehenga.webp" alt="Woman wearing a red embroidered blouse and powder blue lehenga" width="1672" height="941" /></div><figure className="hero-swatch image-shell"><img src="/images/15-texture-powder-blue-gold.webp" alt="Powder blue fabric with gold floral embroidery" width="1254" height="1254" /></figure></section>
-    <section className="collection-story" id="categories" aria-label="Collections"><div className="collection-stage"><div className="collection-panels">{homeCollections.map(([title, description, image, alt, href], index) => <article className={`collection-panel${index === activeCollection ? " is-active" : ""}`} key={title} aria-labelledby={`collection-${index}-title`} aria-hidden={index !== activeCollection}><div className="collection-panel__media image-shell"><img src={image} alt={alt} loading={index === 0 ? "eager" : "lazy"} /></div><div className="collection-panel__content"><span className="collection-panel__number">{String(index + 1).padStart(2, "0")}</span><h2 id={`collection-${index}-title`}>{title}</h2><p>{description}</p><a className="collection-panel__link" href={href} tabIndex={index === activeCollection ? 0 : -1}>Explore Collection <i className="ph ph-arrow-right" aria-hidden="true" /></a></div></article>)}</div><nav className="collection-progress" aria-label="Choose a collection"><ol>{homeCollections.map(([title], index) => <li key={title}><button className={index === activeCollection ? "is-active" : undefined} type="button" aria-label={`Show ${title} collection`} aria-current={index === activeCollection ? "step" : undefined} onClick={() => setActiveCollection(index)}>{String(index + 1).padStart(2, "0")}</button></li>)}</ol></nav></div></section>
+    <section className="hero" ref={heroRef} aria-labelledby="hero-title"><div className="hero-shape hero-circle" aria-hidden="true" /><div className="hero-shape hero-panel" aria-hidden="true" /><div className="hero-shape hero-arch" aria-hidden="true" /><div className="hero-copy"><h1 id="hero-title"><span className="hero-line-mask"><span className="hero-line hero-line--one">TRADITION</span></span><span className="hero-line-mask"><span className="hero-line hero-line--two">MEETS STYLE</span></span></h1><p className="hero-reveal hero-reveal--copy">Indian-style clothing for weddings, festivals and beautiful everyday dressing.</p><a className="button button-primary hero-reveal hero-reveal--cta" href="#new-arrivals">Explore the New Collection</a></div><div className="hero-media image-shell"><img src="/images/01-hero-red-blue-lehenga.webp" alt="Woman wearing a red embroidered blouse and powder blue lehenga" width="1672" height="941" /></div><figure className="hero-swatch image-shell"><img src="/images/15-texture-powder-blue-gold.webp" alt="Powder blue fabric with gold floral embroidery" width="1254" height="1254" /></figure></section>
+    <section className="collection-story" ref={collectionStoryRef} id="categories" aria-label="Collections"><div className="collection-stage" ref={collectionStageRef}><div className="collection-panels">{homeCollections.map(([title, description, image, alt, href], index) => <article className={`collection-panel${index === activeCollection ? " is-active" : ""}`} data-collection-panel key={title} aria-labelledby={`collection-${index}-title`} aria-hidden={index !== activeCollection}><div className="collection-panel__media image-shell"><img src={image} alt={alt} loading={index === 0 ? "eager" : "lazy"} /></div><div className="collection-panel__content"><span className="collection-panel__number" data-reveal="0">{String(index + 1).padStart(2, "0")}</span><h2 id={`collection-${index}-title`} data-reveal="1">{title}</h2><p data-reveal="2">{description}</p><a className="collection-panel__link" data-reveal="3" href={href} tabIndex={index === activeCollection ? 0 : -1}>Explore Collection <i className="ph ph-arrow-right" aria-hidden="true" /></a></div></article>)}</div><nav className="collection-progress" aria-label="Choose a collection"><ol>{homeCollections.map(([title], index) => <li key={title}><button className={index === activeCollection ? "is-active" : undefined} type="button" aria-label={`Show ${title} collection`} aria-current={index === activeCollection ? "step" : undefined} onClick={() => jumpToCollection(index)}>{String(index + 1).padStart(2, "0")}</button></li>)}</ol></nav></div></section>
     <section className="collection-banner" aria-labelledby="collection-title"><div className="collection-media image-shell"><img src="/images/06-olive-collection-banner.webp" alt="Two women in olive and mustard embroidered dresses" loading="lazy" width="1983" height="793" /></div><div className="collection-copy"><h2 id="collection-title">NEW<br />COLLECTION</h2><p>Elegant color, versatile silhouettes and traditional detail for every occasion.</p><a className="button button-outline" href="#new-arrivals">Explore the Collection</a></div></section>
     <Arrivals onSelect={onSelect} />
     <section className="fit-section" id="custom-stitching" aria-labelledby="fit-title"><div className="fit-copy"><h2 id="fit-title">THE FIT BEGINS<br />WITH YOU</h2><div className="fit-steps"><article><i className="ph-light ph-dress" aria-hidden="true" /><h3>Choose Your Style</h3><p>Bring your fabric or choose from our collection.</p></article><article><i className="ph-light ph-ruler" aria-hidden="true" /><h3>Share Your Measurements</h3><p>Our tailors measure for your exact fit.</p></article><article><i className="ph-light ph-hand" aria-hidden="true" /><h3>Finished by Hand</h3><p>Finished to your style preference with care.</p></article></div><a className="button button-primary" href="#newsletter">Discuss Your Outfit</a></div><div className="fit-collage" aria-label="Custom stitching process"><div className="fit-image fit-main image-shell"><img src="/images/07-tailoring-fitting.webp" alt="Tailor measuring a client's shoulder" loading="lazy" /></div><div className="fit-image fit-pattern image-shell"><img src="/images/08-tailoring-patterns.webp" alt="Pattern pieces, scissors and measuring tape" loading="lazy" /></div><div className="fit-image fit-embroidery image-shell"><img src="/images/09-hand-embroidery.webp" alt="Artisan embroidering powder blue fabric by hand" loading="lazy" /></div></div></section>
