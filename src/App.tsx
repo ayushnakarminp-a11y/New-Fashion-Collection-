@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ProductDetail, { type CommerceProduct } from "@/components/ui/e-commerce-product-detail";
+import { getPublishedCategory, getPublishedCollection, type DbCategory } from "@/lib/supabase";
 
-type Product = [name: string, description: string, price: string, alt: string];
-type Collection = {
+export type Product = [name: string, description: string, price: string, alt: string];
+export type Collection = {
   key: "kurta-surwal" | "lehenga" | "pants" | "tops-blouses";
   route: string;
   title: string;
@@ -14,7 +15,7 @@ type Collection = {
   products: Product[];
 };
 
-const collections: Record<string, Collection> = {
+export const collections: Record<string, Collection> = {
   "/kurta-surwal.html": {
     key: "kurta-surwal",
     route: "kurta-surwal.html",
@@ -116,7 +117,7 @@ const kurtaImageFiles = [
   "10-black-gold.webp", "11-rose-floral.webp", "12-white-blue-threadwork.webp",
 ];
 
-function getCollectionImage(collection: Collection, index: number) {
+export function getCollectionImage(collection: Collection, index: number) {
   const number = String(index + 1).padStart(2, "0");
   const filename = collection.key === "kurta-surwal" ? kurtaImageFiles[index] : `${number}.webp`;
   return `/images/${collection.key}/${filename}`;
@@ -133,6 +134,13 @@ function Header({ collection, notify, cartCount }: { collection?: Collection; no
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [remoteCategory, setRemoteCategory] = useState<DbCategory | null>(null);
+  useEffect(() => {
+    if (!collection) { setRemoteCategory(null); return; }
+    let active = true;
+    getPublishedCategory(collection.key).then((result) => { if (active && result) setRemoteCategory(result); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [collection]);
   const toggleMenu = () => { setMenuOpen((open) => !open); setSearchOpen(false); };
   const toggleSearch = () => { setSearchOpen((open) => !open); setMenuOpen(false); };
   const submitSearch = (event: FormEvent) => { event.preventDefault(); notify(query.trim() ? `Searching for “${query.trim()}”` : "Enter a search term"); };
@@ -150,7 +158,7 @@ function Header({ collection, notify, cartCount }: { collection?: Collection; no
         </div>
       </div>
       <nav className="mobile-menu" id="mobileMenu" aria-label="Mobile navigation" hidden={!menuOpen}>{navItems.map(([href, label]) => <a key={href} href={href} className={collection?.route === href ? "active" : undefined} aria-current={collection?.route === href ? "page" : undefined} onClick={() => setMenuOpen(false)}>{label}</a>)}</nav>
-      <div className="search-panel" id="searchPanel" hidden={!searchOpen}><form className="search-form" role="search" onSubmit={submitSearch}><label htmlFor="siteSearch">{collection?.searchLabel ?? "Search the collection"}</label><div className="search-field-row"><input id="siteSearch" name="q" type="search" placeholder={collection?.searchPlaceholder ?? "Try “powder blue lehenga”"} autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus={searchOpen} /><button className="button button-primary" type="submit">Search</button></div></form></div>
+      <div className="search-panel" id="searchPanel" hidden={!searchOpen}><form className="search-form" role="search" onSubmit={submitSearch}><label htmlFor="siteSearch">{remoteCategory?.search_label ?? collection?.searchLabel ?? "Search the collection"}</label><div className="search-field-row"><input id="siteSearch" name="q" type="search" placeholder={remoteCategory?.search_placeholder ?? collection?.searchPlaceholder ?? "Try “powder blue lehenga”"} autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus={searchOpen} /><button className="button button-primary" type="submit">Search</button></div></form></div>
     </header>
   </>;
 }
@@ -182,9 +190,48 @@ function Footer({ home = false }: { home?: boolean }) {
 }
 
 function CollectionPage({ collection, onSelect }: { collection: Collection; onSelect: (product: CommerceProduct) => void }) {
+  const [remote, setRemote] = useState<Awaited<ReturnType<typeof getPublishedCollection>> | undefined>(undefined);
+  const [catalogError, setCatalogError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setRemote(undefined);
+    setCatalogError(false);
+    getPublishedCollection(collection.key)
+      .then((result) => { if (active) setRemote(result); })
+      .catch(() => { if (active) { setRemote(null); setCatalogError(true); } });
+    return () => { active = false; };
+  }, [collection.key]);
+  useEffect(() => {
+    if (!remote?.category) return;
+    document.title = remote.category.meta_title;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", remote.category.meta_description);
+  }, [remote]);
+  const catalogLoading = remote === undefined;
+  const category = remote?.category;
+  const products: CommerceProduct[] = catalogLoading
+    ? []
+    : remote
+    ? remote.products.map((product) => ({
+        name: product.name,
+        description: product.summary,
+        price: `NPR ${Number(product.price_npr).toLocaleString("en-NP")}`,
+        image: product.image_url,
+        alt: product.alt_text,
+        collection: category?.name ?? collection.title.replace(" COLLECTION", ""),
+        details: product.details,
+        care: product.care,
+        delivery: product.delivery,
+      }))
+    : collection.products.map(([name, description, price, alt], index) => ({
+        name, description, price, alt, image: getCollectionImage(collection, index),
+        collection: collection.title.replace(" COLLECTION", ""),
+      }));
   return <main id="main">
-    <section className="catalog-section" id="collection" aria-labelledby="catalog-title"><div className="catalog-heading"><div><h1 id="catalog-title">{collection.title}</h1><p>{collection.intro}</p></div><p className="catalog-count">12 styles</p></div>
-      <div className="catalog-grid">{collection.products.map(([name, description, price, alt], index) => { const image = getCollectionImage(collection, index); const product = { name, description, price, alt, image, collection: collection.title.replace(" COLLECTION", "") }; return <article className="catalog-card" key={name}><button className="catalog-image image-shell" type="button" aria-label={`View ${name} details`} onClick={() => onSelect(product)}><img src={image} alt={alt} loading={index === 0 ? "eager" : "lazy"} decoding="async" width="362" height="362" /></button><button className="catalog-info catalog-info-button" type="button" onClick={() => onSelect(product)} aria-label={`Choose ${name}`}><span><span className="catalog-product-name">{name}</span><span className="catalog-product-description">{description}</span></span><strong>{price}</strong></button></article>; })}</div>
+    <section className="catalog-section" id="collection" aria-labelledby="catalog-title" aria-busy={catalogLoading}><div className="catalog-heading"><div><h1 id="catalog-title">{category?.title ?? collection.title}</h1><p>{category?.intro ?? collection.intro}</p></div><p className="catalog-count">{catalogLoading ? "Loading styles" : `${products.length} styles`}</p></div>
+      {catalogError && <p className="sr-only" role="status">Live catalog is temporarily unavailable. Showing the saved collection.</p>}
+      <div className="catalog-grid">{catalogLoading
+        ? Array.from({ length: collection.products.length }, (_, index) => <div className="catalog-card catalog-card-loading" key={index} aria-hidden="true"><div className="catalog-image image-shell" /><div className="catalog-info"><span /><strong /></div></div>)
+        : products.map((product, index) => <article className="catalog-card" key={`${product.name}-${index}`}><button className="catalog-image image-shell" type="button" aria-label={`View ${product.name} details`} onClick={() => onSelect(product)}><img src={product.image} alt={product.alt} loading={index === 0 ? "eager" : "lazy"} decoding="async" width="362" height="362" /></button><button className="catalog-info catalog-info-button" type="button" onClick={() => onSelect(product)} aria-label={`Choose ${product.name}`}><span><span className="catalog-product-name">{product.name}</span><span className="catalog-product-description">{product.description}</span></span><strong>{product.price}</strong></button></article>)}</div>
     </section>
     <section className="catalog-stitching" id="custom-stitching" aria-labelledby="stitching-title"><div className="catalog-stitching-media image-shell"><img src="/images/07-tailoring-fitting.webp" alt="Tailor measuring a client's shoulder" loading="lazy" decoding="async" width="1448" height="1086" /></div><div className="catalog-stitching-copy"><h2 id="stitching-title">MADE FOR<br />YOUR MEASUREMENTS</h2><p>Choose a set from the collection, bring your own fabric, or ask us to adapt a style. Our in-house tailors fit every piece with care.</p><a className="button button-primary" href="tel:+9779813222995">Call 981-322-2995</a></div></section>
     <Newsletter />

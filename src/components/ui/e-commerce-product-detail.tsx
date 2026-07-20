@@ -18,6 +18,9 @@ export type CommerceProduct = {
   image: string;
   alt: string;
   collection: string;
+  details?: string;
+  care?: string;
+  delivery?: string;
 };
 
 type ProductDetailProps = {
@@ -98,7 +101,7 @@ export default function ProductDetail({ product, onBack, onAddToCart, onBuyNow }
               </span>
             </div>
 
-            <p className="mt-6 max-w-[58ch] text-[15px] leading-7 text-[#55524d]">{product.description}. Finished to order by our boutique tailors with careful attention to fit.</p>
+            <p className="mt-6 max-w-[58ch] text-[15px] leading-7 text-[#55524d]">{product.details || `${product.description}. Finished to order by our boutique tailors with careful attention to fit.`}</p>
 
             <div className="mt-7 border-b border-black/15">
               <div className="flex gap-7" role="tablist" aria-label="Product information">
@@ -118,8 +121,8 @@ export default function ProductDetail({ product, onBack, onAddToCart, onBuyNow }
             </div>
             <div className="min-h-24 py-5 text-sm leading-6 text-[#55524d]" role="tabpanel">
               {activeTab === "details" && <ul className="grid gap-2"><li className="flex gap-2"><Check className="mt-1 shrink-0 text-[var(--brick)]" size={16} weight="bold" />Custom fitting available</li><li className="flex gap-2"><Check className="mt-1 shrink-0 text-[var(--brick)]" size={16} weight="bold" />Fabric and finish checked by hand</li><li className="flex gap-2"><Check className="mt-1 shrink-0 text-[var(--brick)]" size={16} weight="bold" />Color may vary slightly in natural light</li></ul>}
-              {activeTab === "care" && <p>Dry clean recommended. Store folded in a cool, dry place and keep detailed embroidery away from direct heat.</p>}
-              {activeTab === "delivery" && <div className="grid gap-3"><p className="flex gap-3"><Truck className="shrink-0 text-[var(--brick)]" size={21} />Boutique pickup or local delivery can be arranged.</p><p className="flex gap-3"><ShieldCheck className="shrink-0 text-[var(--brick)]" size={21} />We confirm sizing and timing before the order is finalized.</p></div>}
+              {activeTab === "care" && <p>{product.care || "Dry clean recommended. Store folded in a cool, dry place and keep detailed embroidery away from direct heat."}</p>}
+              {activeTab === "delivery" && <div className="grid gap-3"><p className="flex gap-3"><Truck className="shrink-0 text-[var(--brick)]" size={21} />{product.delivery || "Boutique pickup or local delivery can be arranged."}</p><p className="flex gap-3"><ShieldCheck className="shrink-0 text-[var(--brick)]" size={21} />We confirm sizing and timing before the order is finalized.</p></div>}
             </div>
 
             <fieldset className="mt-2">

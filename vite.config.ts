@@ -16,6 +16,7 @@ export default defineConfig({
         lehenga: path.resolve(__dirname, "lehenga.html"),
         pants: path.resolve(__dirname, "pants.html"),
         tops: path.resolve(__dirname, "shirt-tops-blouses.html"),
+        admin: path.resolve(__dirname, "admin.html"),
       },
     },
   },

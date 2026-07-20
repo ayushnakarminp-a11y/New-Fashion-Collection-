@@ -26,6 +26,12 @@
 .catalog-image { display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; cursor: pointer; }
 .catalog-image img { transition: transform 650ms cubic-bezier(.16,1,.3,1); }
 .catalog-card:hover .catalog-image img { transform: scale(1.025); }
+.catalog-card-loading .catalog-image,
+.catalog-card-loading .catalog-info > span,
+.catalog-card-loading .catalog-info > strong { background: linear-gradient(100deg, var(--taupe) 35%, #e3ddd2 50%, var(--taupe) 65%); background-size: 220% 100%; animation: catalog-loading 1.4s ease-in-out infinite; }
+.catalog-card-loading .catalog-info > span { width: 62%; height: 14px; }
+.catalog-card-loading .catalog-info > strong { width: 24%; height: 14px; }
+@keyframes catalog-loading { to { background-position-x: -220%; } }
 .catalog-info { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-top: 12px; }
 .catalog-info h3 { margin: 0 0 4px; font-size: 14px; font-weight: 500; line-height: 1.3; }
 .catalog-info p { margin: 0; color: #6b6862; font-size: 13px; line-height: 1.4; }
