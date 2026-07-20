@@ -19,6 +19,24 @@ import "./admin.css";
 type Notice = { kind: "success" | "error"; message: string } | null;
 type ProductDraft = Omit<DbProduct, "id" | "created_at" | "updated_at"> & { id?: string };
 
+const compareProducts = (left: Pick<DbProduct, "category_id" | "sort_order" | "id">, right: Pick<DbProduct, "category_id" | "sort_order" | "id">) =>
+  left.category_id.localeCompare(right.category_id) || left.sort_order - right.sort_order || left.id.localeCompare(right.id);
+
+const productPayload = (product: ProductDraft & { id: string }) => ({
+  id: product.id,
+  category_id: product.category_id,
+  name: product.name.trim(),
+  summary: product.summary.trim(),
+  price_npr: Number(product.price_npr),
+  image_url: product.image_url.trim(),
+  alt_text: product.alt_text.trim(),
+  details: product.details.trim(),
+  care: product.care.trim(),
+  delivery: product.delivery.trim(),
+  active: product.active,
+  sort_order: Number(product.sort_order),
+});
+
 const blankProduct = (categoryId: string, sortOrder: number): ProductDraft => ({
   category_id: categoryId,
   name: "",
@@ -131,7 +149,7 @@ export function AdminApp() {
     setBusy(true);
     const [categoryResult, productResult] = await Promise.all([
       supabase.from("categories").select("*").order("sort_order", { ascending: true }).returns<DbCategory[]>(),
-      supabase.from("products").select("*").order("sort_order", { ascending: true }).returns<DbProduct[]>(),
+      supabase.from("products").select("*").order("sort_order", { ascending: true }).order("id", { ascending: true }).returns<DbProduct[]>(),
     ]);
     setBusy(false);
     if (categoryResult.error || productResult.error) {
@@ -140,18 +158,19 @@ export function AdminApp() {
     }
     const nextCategories = categoryResult.data ?? [];
     setCategories(nextCategories);
-    setProducts(productResult.data ?? []);
+    setProducts((productResult.data ?? []).sort(compareProducts));
     setCategoryId((current) => current || nextCategories[0]?.id || "");
   };
 
   useEffect(() => { if (signedIn) void loadData(); }, [signedIn]);
 
   const activeCategory = categories.find((category) => category.id === categoryId) ?? null;
+  const storefrontHref = activeCategory ? `${activeCategory.slug === "tops-blouses" ? "shirt-tops-blouses" : activeCategory.slug}.html` : "index.html";
   const visibleProducts = useMemo(() => products.filter((product) => {
     const matchesCategory = product.category_id === categoryId;
     const term = query.trim().toLowerCase();
     return matchesCategory && (!term || product.name.toLowerCase().includes(term) || product.summary.toLowerCase().includes(term));
-  }), [products, categoryId, query]);
+  }).sort(compareProducts), [products, categoryId, query]);
 
   useEffect(() => {
     setCategoryDraft(activeCategory ? { ...activeCategory } : null);
@@ -185,17 +204,23 @@ export function AdminApp() {
       setNotice({ kind: "error", message: "Name, product image and image description are required." });
       return;
     }
+    const siblings = products.filter((product) => product.category_id === draft.category_id && product.id !== draft.id).sort(compareProducts);
+    const productId = draft.id ?? crypto.randomUUID();
+    const targetOrder = Math.min(Math.max(Math.trunc(Number(draft.sort_order)), 1), siblings.length + 1);
+    const reordered: (ProductDraft & { id: string })[] = [...siblings];
+    reordered.splice(targetOrder - 1, 0, { ...draft, id: productId });
+    const payload = reordered.map((product, index) => productPayload({ ...product, sort_order: index + 1 }));
     setBusy(true);
-    const payload = { ...draft, price_npr: Number(draft.price_npr), sort_order: Number(draft.sort_order) };
-    const result = draft.id
-      ? await supabase.from("products").update(payload).eq("id", draft.id).select().single<DbProduct>()
-      : await supabase.from("products").insert(payload).select().single<DbProduct>();
+    const result = await supabase.from("products").upsert(payload, { onConflict: "id" }).select().returns<DbProduct[]>();
     setBusy(false);
     if (result.error) { setNotice({ kind: "error", message: result.error.message }); return; }
-    setProducts((current) => draft.id ? current.map((item) => item.id === result.data.id ? result.data : item) : [...current, result.data]);
-    setDraft({ ...result.data });
-    setSelectedId(result.data.id);
-    setNotice({ kind: "success", message: "Product saved and the storefront is up to date." });
+    const savedProducts = (result.data ?? []).sort(compareProducts);
+    const savedProduct = savedProducts.find((product) => product.id === productId);
+    if (!savedProduct) { await loadData(); setNotice({ kind: "error", message: "The product saved, but the refreshed record could not be selected." }); return; }
+    setProducts((current) => [...current.filter((product) => product.category_id !== draft.category_id), ...savedProducts].sort(compareProducts));
+    setDraft({ ...savedProduct });
+    setSelectedId(savedProduct.id);
+    setNotice({ kind: "success", message: `Product saved at position ${savedProduct.sort_order}. The storefront order is up to date.` });
   };
 
   const saveCategory = async (event: FormEvent) => {
@@ -276,7 +301,7 @@ export function AdminApp() {
   return <div className="admin-shell">
     <header className="admin-header">
       <a className="admin-brand" href="index.html"><img src="/images/economic-boutique-mark.png" alt="" width="42" height="42" /><span><strong>Economic Boutique</strong><small>Catalog admin</small></span></a>
-      <div className="admin-header-actions"><a href="index.html" target="_blank" rel="noreferrer"><ArrowSquareOut size={18} />View store</a><button type="button" onClick={signOut}><SignOut size={18} />Sign out</button></div>
+      <div className="admin-header-actions"><a href={storefrontHref} target="_blank" rel="noreferrer"><ArrowSquareOut size={18} />View collection</a><button type="button" onClick={signOut}><SignOut size={18} />Sign out</button></div>
     </header>
 
     <main className="admin-main">
@@ -287,7 +312,7 @@ export function AdminApp() {
           return <button type="button" key={category.id} className={category.id === categoryId ? "active" : ""} onClick={() => setCategoryId(category.id)}><span>{category.name}</span><small>{count}</small></button>;
         })}</nav>
         <label className="admin-search"><span className="sr-only">Search products</span><MagnifyingGlass size={18} /><input type="search" placeholder="Search products" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <div className="product-list" aria-label="Products">{busy && !products.length ? <div className="list-empty"><SpinnerGap className="spin" size={22} />Loading products</div> : visibleProducts.length ? visibleProducts.map((product) => <button type="button" key={product.id} className={selectedId === product.id ? "active" : ""} onClick={() => chooseProduct(product)}><span className="product-thumb">{product.image_url ? <img src={product.image_url} alt="" /> : <ImageIcon size={20} />}</span><span><strong>{product.name}</strong><small>NPR {Number(product.price_npr).toLocaleString("en-NP")}</small></span>{!product.active && <em>Hidden</em>}</button>) : <div className="list-empty">No products found.</div>}</div>
+        <div className="product-list" aria-label="Products">{busy && !products.length ? <div className="list-empty"><SpinnerGap className="spin" size={22} />Loading products</div> : visibleProducts.length ? visibleProducts.map((product) => <button type="button" key={product.id} className={selectedId === product.id ? "active" : ""} onClick={() => chooseProduct(product)}><span className="product-thumb">{product.image_url ? <img src={product.image_url} alt="" /> : <ImageIcon size={20} />}</span><span><strong>{product.name}</strong><small>Position {product.sort_order} · NPR {Number(product.price_npr).toLocaleString("en-NP")}</small></span>{!product.active && <em>Hidden</em>}</button>) : <div className="list-empty">No products found.</div>}</div>
         <button className="admin-button admin-button-secondary add-product-mobile" type="button" onClick={addProduct}><Plus size={18} />Add product</button>
       </aside>
 
@@ -302,7 +327,7 @@ export function AdminApp() {
         </form> : draft ? <form className="editor-form" onSubmit={saveProduct}>
           <div className="product-editor-layout">
             <div className="image-editor"><div className="image-preview">{draft.image_url ? <img src={draft.image_url} alt={draft.alt_text || "Product preview"} /> : <div><ImageIcon size={32} /><span>No image selected</span></div>}</div><label className="admin-button admin-button-secondary upload-button"><UploadSimple size={18} />{uploading ? "Uploading" : "Upload image"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadImage} disabled={uploading} /></label><p>JPG, PNG or WebP. Maximum 8 MB.</p></div>
-            <div className="field-grid product-fields"><label className="field-wide">Product name<input required value={draft.name} onChange={(event) => updateDraft("name", event.target.value)} /></label><label>Price in NPR<input type="number" min="0" step="1" required value={draft.price_npr} onChange={(event) => updateDraft("price_npr", Number(event.target.value))} /></label><label>Display order<input type="number" min="1" step="1" required value={draft.sort_order} onChange={(event) => updateDraft("sort_order", Number(event.target.value))} /></label><label className="field-wide">Short description<textarea rows={2} required value={draft.summary} onChange={(event) => updateDraft("summary", event.target.value)} /></label><label className="field-wide">Image URL<input required type="text" inputMode="url" value={draft.image_url} onChange={(event) => updateDraft("image_url", event.target.value)} /></label><label className="field-wide">Image description<input required value={draft.alt_text} onChange={(event) => updateDraft("alt_text", event.target.value)} /><small>Describe the garment for customers who cannot see the picture.</small></label><label className="visibility-field"><input type="checkbox" checked={draft.active} onChange={(event) => updateDraft("active", event.target.checked)} /><span><strong>Visible in store</strong><small>Turn this off to hide the item without deleting it.</small></span></label></div>
+            <div className="field-grid product-fields"><label className="field-wide">Product name<input required value={draft.name} onChange={(event) => updateDraft("name", event.target.value)} /></label><label>Price in NPR<input type="number" min="0" step="1" required value={draft.price_npr} onChange={(event) => updateDraft("price_npr", Number(event.target.value))} /></label><label>Display order<input type="number" min="1" max={products.filter((product) => product.category_id === draft.category_id).length + (draft.id ? 0 : 1)} step="1" required value={draft.sort_order} onChange={(event) => updateDraft("sort_order", Number(event.target.value))} /><small>Other products shift automatically so every position stays unique.</small></label><label className="field-wide">Short description<textarea rows={2} required value={draft.summary} onChange={(event) => updateDraft("summary", event.target.value)} /></label><label className="field-wide">Image URL<input required type="text" inputMode="url" value={draft.image_url} onChange={(event) => updateDraft("image_url", event.target.value)} /></label><label className="field-wide">Image description<input required value={draft.alt_text} onChange={(event) => updateDraft("alt_text", event.target.value)} /><small>Describe the garment for customers who cannot see the picture.</small></label><label className="visibility-field"><input type="checkbox" checked={draft.active} onChange={(event) => updateDraft("active", event.target.checked)} /><span><strong>Visible in store</strong><small>Turn this off to hide the item without deleting it.</small></span></label></div>
           </div>
           <div className="form-section details-section"><div className="form-section-heading"><h3>Product details</h3><p>Content shown when a customer opens the item.</p></div><div className="field-grid"><label className="field-wide">Full description<textarea rows={4} value={draft.details} onChange={(event) => updateDraft("details", event.target.value)} /></label><label>Care instructions<textarea rows={4} value={draft.care} onChange={(event) => updateDraft("care", event.target.value)} /></label><label>Delivery information<textarea rows={4} value={draft.delivery} onChange={(event) => updateDraft("delivery", event.target.value)} /></label></div></div>
           <div className="form-actions">{draft.id && <button className="admin-button danger-button" type="button" onClick={removeProduct} disabled={busy}><Trash size={18} />Delete</button>}<span /><button className="admin-button admin-button-primary" type="submit" disabled={busy || uploading}>{busy ? <SpinnerGap className="spin" size={18} /> : <FloppyDisk size={18} />}{draft.id ? "Save changes" : "Add product"}</button></div>

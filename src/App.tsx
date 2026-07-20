@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ProductDetail, { type CommerceProduct } from "@/components/ui/e-commerce-product-detail";
-import { getPublishedCategory, getPublishedCollection, type DbCategory } from "@/lib/supabase";
+import { getPublishedCategory, getPublishedCollection, isSupabaseConfigured, type DbCategory } from "@/lib/supabase";
 
 export type Product = [name: string, description: string, price: string, alt: string];
 export type Collection = {
@@ -192,6 +192,7 @@ function Footer({ home = false }: { home?: boolean }) {
 function CollectionPage({ collection, onSelect }: { collection: Collection; onSelect: (product: CommerceProduct) => void }) {
   const [remote, setRemote] = useState<Awaited<ReturnType<typeof getPublishedCollection>> | undefined>(undefined);
   const [catalogError, setCatalogError] = useState(false);
+  const [catalogRevision, setCatalogRevision] = useState(0);
   useEffect(() => {
     let active = true;
     setRemote(undefined);
@@ -200,7 +201,7 @@ function CollectionPage({ collection, onSelect }: { collection: Collection; onSe
       .then((result) => { if (active) setRemote(result); })
       .catch(() => { if (active) { setRemote(null); setCatalogError(true); } });
     return () => { active = false; };
-  }, [collection.key]);
+  }, [collection.key, catalogRevision]);
   useEffect(() => {
     if (!remote?.category) return;
     document.title = remote.category.meta_title;
@@ -208,10 +209,12 @@ function CollectionPage({ collection, onSelect }: { collection: Collection; onSe
   }, [remote]);
   const catalogLoading = remote === undefined;
   const category = remote?.category;
-  const products: CommerceProduct[] = catalogLoading
+  const useBundledCatalog = !isSupabaseConfigured && !remote && !catalogLoading;
+  const products: (CommerceProduct & { catalogId: string })[] = catalogLoading
     ? []
     : remote
     ? remote.products.map((product) => ({
+        catalogId: product.id,
         name: product.name,
         description: product.summary,
         price: `NPR ${Number(product.price_npr).toLocaleString("en-NP")}`,
@@ -222,16 +225,18 @@ function CollectionPage({ collection, onSelect }: { collection: Collection; onSe
         care: product.care,
         delivery: product.delivery,
       }))
-    : collection.products.map(([name, description, price, alt], index) => ({
+    : useBundledCatalog ? collection.products.map(([name, description, price, alt], index) => ({
+        catalogId: `${collection.key}-${index + 1}`,
         name, description, price, alt, image: getCollectionImage(collection, index),
         collection: collection.title.replace(" COLLECTION", ""),
-      }));
+      })) : [];
   return <main id="main">
     <section className="catalog-section" id="collection" aria-labelledby="catalog-title" aria-busy={catalogLoading}><div className="catalog-heading"><div><h1 id="catalog-title">{category?.title ?? collection.title}</h1><p>{category?.intro ?? collection.intro}</p></div><p className="catalog-count">{catalogLoading ? "Loading styles" : `${products.length} styles`}</p></div>
-      {catalogError && <p className="sr-only" role="status">Live catalog is temporarily unavailable. Showing the saved collection.</p>}
+      {catalogError && <div className="catalog-error" role="status"><p>The live collection could not be loaded. We have not substituted older product images.</p><button className="button button-primary" type="button" onClick={() => setCatalogRevision((value) => value + 1)}>Try again</button></div>}
+      {!catalogLoading && !catalogError && !products.length && <p className="catalog-empty" role="status">This collection does not have any visible styles right now.</p>}
       <div className="catalog-grid">{catalogLoading
         ? Array.from({ length: collection.products.length }, (_, index) => <div className="catalog-card catalog-card-loading" key={index} aria-hidden="true"><div className="catalog-image image-shell" /><div className="catalog-info"><span /><strong /></div></div>)
-        : products.map((product, index) => <article className="catalog-card" key={`${product.name}-${index}`}><button className="catalog-image image-shell" type="button" aria-label={`View ${product.name} details`} onClick={() => onSelect(product)}><img src={product.image} alt={product.alt} loading={index === 0 ? "eager" : "lazy"} decoding="async" width="362" height="362" /></button><button className="catalog-info catalog-info-button" type="button" onClick={() => onSelect(product)} aria-label={`Choose ${product.name}`}><span><span className="catalog-product-name">{product.name}</span><span className="catalog-product-description">{product.description}</span></span><strong>{product.price}</strong></button></article>)}</div>
+        : products.map((product, index) => <article className="catalog-card" key={product.catalogId}><button className="catalog-image image-shell" type="button" aria-label={`View ${product.name} details`} onClick={() => onSelect(product)}><img src={product.image} alt={product.alt} loading={index === 0 ? "eager" : "lazy"} decoding="async" width="362" height="362" /></button><button className="catalog-info catalog-info-button" type="button" onClick={() => onSelect(product)} aria-label={`Choose ${product.name}`}><span><span className="catalog-product-name">{product.name}</span><span className="catalog-product-description">{product.description}</span></span><strong>{product.price}</strong></button></article>)}</div>
     </section>
     <section className="catalog-stitching" id="custom-stitching" aria-labelledby="stitching-title"><div className="catalog-stitching-media image-shell"><img src="/images/07-tailoring-fitting.webp" alt="Tailor measuring a client's shoulder" loading="lazy" decoding="async" width="1448" height="1086" /></div><div className="catalog-stitching-copy"><h2 id="stitching-title">MADE FOR<br />YOUR MEASUREMENTS</h2><p>Choose a set from the collection, bring your own fabric, or ask us to adapt a style. Our in-house tailors fit every piece with care.</p><a className="button button-primary" href="tel:+9779813222995">Call 981-322-2995</a></div></section>
     <Newsletter />

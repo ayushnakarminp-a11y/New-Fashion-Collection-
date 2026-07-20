@@ -59,9 +59,10 @@ export async function getPublishedCollection(slug: string) {
     .eq("category_id", category.id)
     .eq("active", true)
     .order("sort_order", { ascending: true })
+    .order("id", { ascending: true })
     .returns<DbProduct[]>();
   if (productsError) throw productsError;
-  return products?.length ? { category, products } : null;
+  return { category, products: products ?? [] };
 }
 
 export async function getPublishedCategory(slug: string) {
