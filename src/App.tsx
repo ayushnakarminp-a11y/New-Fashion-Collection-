@@ -250,6 +250,37 @@ const homeCollections = [
   ["Shirts, Tops & Blouses", "Chic essentials that bring together contemporary cuts, flattering fits, and easy elegance.", "/images/04-blue-embroidered-top.webp", "Powder blue embroidered top and blouse", "shirt-tops-blouses.html"],
 ] as const;
 
+function LogoReveal() {
+  const fragments = ["hook", "left", "right", "sash", "hem"] as const;
+
+  return <section className="logo-reveal" aria-label="Economic Boutique logo reveal">
+    <div className="logo-reveal__stage">
+      <div className="logo-reveal__wash logo-reveal__wash--blue" aria-hidden="true" />
+      <div className="logo-reveal__wash logo-reveal__wash--red" aria-hidden="true" />
+      <div className="logo-reveal__frame" aria-hidden="true">
+        <div className="logo-reveal__fragments">
+          <div className="logo-reveal__pieces">
+            {fragments.map((fragment) => <img
+              className={`logo-reveal__fragment logo-reveal__fragment--${fragment}`}
+              src="/images/economic-boutique-mark.png"
+              alt=""
+              width="256"
+              height="256"
+              key={fragment}
+            />)}
+          </div>
+          <img className="logo-reveal__resolved" src="/images/economic-boutique-mark.png" alt="" width="256" height="256" />
+        </div>
+        <div className="logo-reveal__name">
+          <span>NEW FASHION COLLECTION</span>
+          <strong>ECONOMIC BOUTIQUE</strong>
+        </div>
+      </div>
+      <p className="sr-only">New Fashion Collection, Economic Boutique</p>
+    </div>
+  </section>;
+}
+
 function HomePage({ onSelect }: { onSelect: (product: CommerceProduct) => void }) {
   const [activeCollection, setActiveCollection] = useState(0);
   const heroRef = useRef<HTMLElement>(null);
@@ -386,6 +417,7 @@ function HomePage({ onSelect }: { onSelect: (product: CommerceProduct) => void }
   };
 
   return <main id="main">
+    <LogoReveal />
     <section className="hero" ref={heroRef} aria-labelledby="hero-title"><div className="hero-shape hero-circle" aria-hidden="true" /><div className="hero-shape hero-panel" aria-hidden="true" /><div className="hero-shape hero-arch" aria-hidden="true" /><div className="hero-copy"><h1 id="hero-title"><span className="hero-line-mask"><span className="hero-line hero-line--one">TRADITION</span></span><span className="hero-line-mask"><span className="hero-line hero-line--two">MEETS STYLE</span></span></h1><p className="hero-reveal hero-reveal--copy">Indian-style clothing for weddings, festivals and beautiful everyday dressing.</p><a className="button button-primary hero-reveal hero-reveal--cta" href="#new-arrivals">Explore the New Collection</a></div><div className="hero-media image-shell"><img src="/images/01-hero-red-blue-lehenga.webp" alt="Woman wearing a red embroidered blouse and powder blue lehenga" width="1672" height="941" /></div><figure className="hero-swatch image-shell"><img src="/images/15-texture-powder-blue-gold.webp" alt="Powder blue fabric with gold floral embroidery" width="1254" height="1254" /></figure></section>
     <section className="collection-story" ref={collectionStoryRef} id="categories" aria-label="Collections"><div className="collection-stage" ref={collectionStageRef}><div className="collection-panels">{homeCollections.map(([title, description, image, alt, href], index) => <article className={`collection-panel${index === activeCollection ? " is-active" : ""}`} data-collection-panel key={title} aria-labelledby={`collection-${index}-title`} aria-hidden={index !== activeCollection}><div className="collection-panel__media image-shell"><img src={image} alt={alt} loading={index === 0 ? "eager" : "lazy"} /></div><div className="collection-panel__content"><span className="collection-panel__number" data-reveal="0">{String(index + 1).padStart(2, "0")}</span><h2 id={`collection-${index}-title`} data-reveal="1">{title}</h2><p data-reveal="2">{description}</p><a className="collection-panel__link" data-reveal="3" href={href} tabIndex={index === activeCollection ? 0 : -1}>Explore Collection <i className="ph ph-arrow-right" aria-hidden="true" /></a></div></article>)}</div><nav className="collection-progress" aria-label="Choose a collection"><ol>{homeCollections.map(([title], index) => <li key={title}><button className={index === activeCollection ? "is-active" : undefined} type="button" aria-label={`Show ${title} collection`} aria-current={index === activeCollection ? "step" : undefined} onClick={() => jumpToCollection(index)}>{String(index + 1).padStart(2, "0")}</button></li>)}</ol></nav></div></section>
     <section className="collection-banner" aria-labelledby="collection-title"><div className="collection-media image-shell"><img src="/images/06-olive-collection-banner.webp" alt="Two women in olive and mustard embroidered dresses" loading="lazy" width="1983" height="793" /></div><div className="collection-copy"><h2 id="collection-title">NEW<br />COLLECTION</h2><p>Elegant color, versatile silhouettes and traditional detail for every occasion.</p><a className="button button-outline" href="#new-arrivals">Explore the Collection</a></div></section>
